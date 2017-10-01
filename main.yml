@@ -1,0 +1,75 @@
+- hosts: robusta-kanboard
+  vars_files:
+    - vault.yml
+    - vars.yml
+  vars:
+    project_location: /home/{{ deployer_user }}/kanboard
+    home_dir: /home/{{ deployer_user }}
+    deployer_pass: "{{vault_deployer_pass}}"
+    mysql_root_pass: "{{ vault_mysql_root_pass }}"
+  remote_user: "{{ sudo_user }}"
+  tasks:
+    - name: Install basic packages and so on
+      include_role:
+        name: basics
+      when: step_state ==  'NOSKIP'
+
+    - name: Install Nginx
+      include_role:
+        name: nginx
+      when: step_state ==  'NOSKIP'
+    
+    - name: Install Mysql
+      include_role:
+        name: mysql
+      when: step_state ==  'NOSKIP'
+
+    - name: Install PHP 7.0, and basic php packages
+      include_role:
+        name: php
+      when: step_state ==  'NOSKIP'
+
+    - name: Install missing php modules
+      apt:
+        name: "{{ item }}"
+        state: latest
+      with_items:
+        - php7.0-openssl
+        - php7.0-hash
+        - php7.0-ctype
+        - php7.0-session
+      when: step_state ==  'NOSKIP'
+
+    - name: Configure SSH service to disable password login
+      include_role:
+        name: configure-sshd-service
+      when: step_state ==  'NOSKIP'
+
+    - name: Create User that will handle running the app and deploy updates
+      include_role:
+        name: create-deployer-user
+      when: step_state ==  'NOSKIP'
+    
+    - name: Add my key to {{ sudo_user }}
+      authorized_key:
+        user: "{{sudo_user }}"
+        state: present
+        key: "{{ item }}"
+      with_file:
+        - ssh-keys/macair-fat7y.pub
+      when: step_state ==  'NOSKIP'
+
+    - name: Configure PHP FPM Pool with the deployer's user name
+      include_role:
+        name: configure-phpfpm-user
+      when: step_state ==  'NOSKIP'
+    
+    - name: Configure NGINX for static site
+      include_role:
+        name: configure-nginx-sites
+      when: step_state ==  'NOSKIP'
+
+    - name: Install PHP Composer
+      include_role:
+        name: install-php-composer
+      when: step_state ==  'NOSKIP'
