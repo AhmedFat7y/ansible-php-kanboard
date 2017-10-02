@@ -29,17 +29,6 @@
         name: php
       when: step_state ==  'NOSKIP'
 
-    - name: Install missing php modules
-      apt:
-        name: "{{ item }}"
-        state: latest
-      with_items:
-        - php7.0-openssl
-        - php7.0-hash
-        - php7.0-ctype
-        - php7.0-session
-      when: step_state ==  'NOSKIP'
-
     - name: Configure SSH service to disable password login
       include_role:
         name: configure-sshd-service
