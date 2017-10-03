@@ -18,7 +18,7 @@
       include_role:
         name: nginx
       when: step_state ==  'NOSKIP'
-    
+
     - name: Install Mysql
       include_role:
         name: mysql
@@ -38,7 +38,7 @@
       include_role:
         name: create-deployer-user
       when: step_state ==  'NOSKIP'
-    
+
     - name: Add my key to {{ sudo_user }}
       authorized_key:
         user: "{{sudo_user }}"
@@ -52,7 +52,7 @@
       include_role:
         name: configure-phpfpm-user
       when: step_state ==  'NOSKIP'
-    
+
     - name: Configure NGINX for static site
       include_role:
         name: configure-nginx-sites
@@ -62,3 +62,46 @@
       include_role:
         name: install-php-composer
       when: step_state ==  'NOSKIP'
+
+    - name: Clone kanboard repo
+      git:
+        repo: https://github.com/kanboard/kanboard.git
+        dest: "{{ project_location }}"
+        version: stable
+
+    - name: Create kanboard database
+      mysql_db:
+        name: kanboard
+        state: present
+
+    - name: write kanboard configs
+      template:
+        src: files/config.php.j2
+        dest: "{{ project_location }}/config.php"
+        owner: "{{ deployer_user }}"
+        group: "{{ deployer_user }}"
+        mode: 0640
+
+    - name: Composer install kanboard deps
+      shell: composer install
+      args:
+        chdir: "{{ project_location }}"
+
+    - name: Install deps of certbot
+      apt:
+        name: software-properties-common
+        state: latest
+
+    - name: Install certbot repo
+      apt_repository:
+        repo: 'ppa:certbot/certbot'
+        update_cache: yes
+        state: present
+
+    - name: Install certbot nginx support
+      apt:
+        name: python-certbot-nginx
+        state: latest
+
+    - name: Install cert for kanboard
+      shell: certbot -n --nginx --agree-tos --email accounts@robustastudio.com --domains kanboard.robustastudio.com
